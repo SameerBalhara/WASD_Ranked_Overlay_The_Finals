@@ -20,21 +20,18 @@ class Text():
     #colorSamples is the 0th, 12th, 24th images of the 36 images, in color
     @classmethod
     def cvtImageToText_36(cls, numpyData, colorSamples):
-        cls.refImgDict_cvtd_to_Numpy = Resolution.refImgDict_cvtd_to_Numpy
+        cls.ref_stack = Resolution.ref_stack
+        cls.ref_labels = Resolution.ref_labels
         cls.maxHammingDistance = Resolution.maxHammingDistance
         cls.color_clf = Resolution.color_clf
 
         cvtdText = []
 
         for subimage in numpyData:
-            minHD, label = cls.maxHammingDistance, None
-            for refImg in cls.refImgDict_cvtd_to_Numpy:
-                HD = np.sum(subimage != cls.refImgDict_cvtd_to_Numpy[refImg])
-                if HD == 0:
-                    label = refImg
-                    break
-                elif HD < minHD:
-                    minHD, label = HD, refImg
+            HDs = np.count_nonzero(cls.ref_stack != subimage , axis=(1, 2))
+            best_idx = int(np.argmin(HDs))
+            best_hd = int(HDs[best_idx])
+            label = cls.ref_labels[best_idx]
             cvtdText.append(label)
 
         cls.cvtdText = [cvtdText[0:12], cvtdText[12:24], cvtdText[24:36]]
@@ -66,21 +63,15 @@ class Text():
     # If a team color is not None, then initialCoins are valid to be used in Logic.py
     @classmethod
     def convertCoinImages(cls, numpyData, colorSamples):
-        cls.refImgDict_cvtd_to_Numpy = Resolution.refImgDict_cvtd_to_Numpy
+        cls.ref_stack = Resolution.ref_stack
+        cls.ref_labels = Resolution.ref_labels
         cls.maxHammingDistance = Resolution.maxHammingDistance
 
         cvtdText = []
-
         for subimage in numpyData:
-            minHD, label = cls.maxHammingDistance, None
-            for refImg in cls.refImgDict_cvtd_to_Numpy:
-                HD = np.sum(subimage != cls.refImgDict_cvtd_to_Numpy[refImg])
-                if HD == 0:
-                    label = refImg
-                    break
-                elif HD < minHD:
-                    minHD, label = HD, refImg
-            cvtdText.append(label)
+            HDs = np.count_nonzero(cls.ref_stack != subimage , axis=(1, 2))
+            best_idx = int(np.argmin(HDs))
+            cvtdText.append(cls.ref_labels[best_idx])
 
         cls.initialCoins = [cvtdText[0:3], cvtdText[3:6], cvtdText[6:9]]
         cls.teamColorsOnInitialCoins = [None, None, None]

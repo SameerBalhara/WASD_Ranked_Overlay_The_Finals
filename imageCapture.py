@@ -1,8 +1,8 @@
 from ResolutionDependentData import Resolution
 from imageToText import Text
+from mss_singleton import get_sct
 import cv2
 import time
-import mss
 import numpy as np
 
 #WARNING: class should only ever be accessed after ResolutionDependentData is initialized
@@ -19,9 +19,9 @@ def takesubImages(msDelay = 0, monIndex = 0):
     pixelLocations = Resolution.absPxls
     scene = None
 
-    with mss.mss() as sct:
-        monitor = sct.monitors[monIndex]
-        scene = np.array(sct.grab(monitor))[:, :, :3]
+    sct = get_sct()
+    monitor = sct.monitors[monIndex]
+    scene = np.array(sct.grab(monitor))[:, :, :3]
 
     if scene is not None:
         BinarizedImages = []
@@ -36,7 +36,8 @@ def takesubImages(msDelay = 0, monIndex = 0):
                 colorSamples.append(subimage)
 
             gray = cv2.cvtColor(subimage, cv2.COLOR_BGR2GRAY)
-            _, binary = cv2.threshold(gray, 250, 255, cv2.THRESH_BINARY)
+            _, binary = cv2.threshold(gray, 250, 1, cv2.THRESH_BINARY)
+            binary = binary.astype(bool)
             BinarizedImages.append(binary)
 
         t = Text()
@@ -55,9 +56,9 @@ def captureCoins(msDelay = 0, monIndex = 0):
     pixelLocations = Resolution.absPxls
     scene = None
 
-    with mss.mss() as sct:
-        monitor = sct.monitors[monIndex]
-        scene = np.array(sct.grab(monitor))[:, :, :3]
+    sct = get_sct()
+    monitor = sct.monitors[monIndex]
+    scene = np.array(sct.grab(monitor))[:, :, :3]
 
     if scene is not None:
         BinarizedImages = []
@@ -74,7 +75,8 @@ def captureCoins(msDelay = 0, monIndex = 0):
                 colorSamples.append(subimage)
 
             gray = cv2.cvtColor(subimage, cv2.COLOR_BGR2GRAY)
-            _, binary = cv2.threshold(gray, 250, 255, cv2.THRESH_BINARY)
+            _, binary = cv2.threshold(gray, 250, 1, cv2.THRESH_BINARY)
+            binary = binary.astype(bool)
             BinarizedImages.append(binary)
 
         t = Text()

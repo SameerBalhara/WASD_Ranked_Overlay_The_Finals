@@ -5,12 +5,14 @@ from ResolutionDependentData import Resolution
 import imageCapture as iC
 from imageToText import Text
 from Logic import Logic
+from mss_singleton import get_sct
+from settings import load_settings
+import mss
 import time
 import traceback
 import cv2
 import numpy as np
 import ctypes
-import mss
 
 from PyQt5.QtCore import Qt, QObject, pyqtSignal
 from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QBrush, QFontMetrics
@@ -137,7 +139,7 @@ class Overlay(QWidget):
 
         self.setGeometry(win_x, win_y, win_w, win_h)
 
-        self.status_label = QLabel("Press f8", self)
+        self.status_label = QLabel("Capture Init Coins", self)
         self.status_label.setFont(self.status_font)
         self.status_label.setStyleSheet("color: white;")
         self.status_label.setAlignment(Qt.AlignCenter)
@@ -183,20 +185,20 @@ class Overlay(QWidget):
 
         initialCoins = initCoins
         f8_valid = len(initCoins) > 0
-        print(initialCoins)
+        #print(initialCoins)
 
         if not f8_valid:
-            self.set_status("no coins found")
+            self.set_status("invalid coin capture")
 
     def on_tab_pressed(self):
         try:
             if not f8_valid:
-                print("f8 not valid")
-                self.set_status("f8 not valid")
+                #print("invalid coin capture")
+                self.set_status("invalid coin capture")
                 return
 
             global initialCoins
-            self.set_status("tab pressed")
+            self.set_status("scoreboard key pressed")
 
             t0 = time.perf_counter()
             setOfTeamsAlive = self.wipeCheck()
@@ -207,8 +209,8 @@ class Overlay(QWidget):
                 timeToCalculateWipe = 33
 
             netDelay = 33 - timeToCalculateWipe
-            print("timeToCalculateWipe:", timeToCalculateWipe)
-            print("netDelay:", netDelay)
+            #print("timeToCalculateWipe:", timeToCalculateWipe)
+            #print("netDelay:", netDelay)
 
             iC.takesubImages(msDelay=netDelay)
 
@@ -232,12 +234,8 @@ class Overlay(QWidget):
 
                     for col in range(3):
                         self.update_box(i * 3 + col, d[col], color=a)
+                    #print(d)
 
-                    print(d)
-
-                elif a is not None and a not in initialCoins:
-                    self.set_status("f8 not updated before round start")
-                    self.clear_row(i)
                 else:
                     self.clear_row(i)
 
@@ -257,9 +255,9 @@ class Overlay(QWidget):
         y1, y2 = Resolution.wipeCrop[2], Resolution.wipeCrop[3]
 
         roi = {"left": x1, "top": y1, "width": x2 - x1, "height": y2 - y1}
-        with mss.mss() as sct:
-            img = sct.grab(roi)
-            scene = np.array(img)[:, :, :3]
+        sct = get_sct()
+        img = sct.grab(roi)
+        scene = np.array(img)[:, :, :3]
 
         aliveTeams = set()
 
@@ -271,13 +269,16 @@ class Overlay(QWidget):
             confidenceLevel = float(max(Resolution.color_clf.predict_proba(sample)[0]))
             if confidenceLevel > 0.9:
                 aliveTeams.add(colorString)
-            print((colorString, confidenceLevel))
+            #print((colorString, confidenceLevel))
 
         return aliveTeams
 
 
-def keyboard_thread(bridge):
-    keyboard.add_hotkey("f8", bridge.f8_pressed.emit)
+def keyboard_thread(bridge, keybinds):
+    init_key = keybinds["initialScreenshot"]
+    score_key = keybinds["scoreboard"]
+
+    keyboard.add_hotkey(init_key, bridge.f8_pressed.emit)
 
     def tab_press(e):
         global tabLocked, tabReleased
@@ -293,15 +294,16 @@ def keyboard_thread(bridge):
         with tabLock:
             tabReleased = True
 
-    keyboard.on_press_key("tab", tab_press)
-    keyboard.on_release_key("tab", tab_release)
+    keyboard.on_press_key(score_key, tab_press)
+    keyboard.on_release_key(score_key, tab_release)
     keyboard.wait()
 
-
 def main():
+    settings = load_settings()
+    keybinds = settings["keybinds"]
     monitorIndex, primary_mon = get_primary_mss_monitor()
     w, h = primary_mon["width"], primary_mon["height"]
-    print("Primary MSS index:", monitorIndex, "Resolution:", (w, h))
+    #print("Primary MSS index:", monitorIndex, "Resolution:", (w, h))
 
     if (w, h) not in SUPPORTED:
         show_native_error(
@@ -322,7 +324,7 @@ def main():
     bridge = Bridge()
     overlay = Overlay(bridge)
 
-    t = threading.Thread(target=keyboard_thread, args=(bridge,), daemon=True)
+    t = threading.Thread(target = keyboard_thread, args = (bridge, keybinds), daemon = True)
     t.start()
 
     sys.exit(app.exec_())

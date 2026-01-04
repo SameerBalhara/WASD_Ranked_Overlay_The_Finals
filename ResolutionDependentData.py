@@ -1,6 +1,7 @@
 import cv2
 import os
 from sklearn.ensemble import RandomForestClassifier
+import numpy as np
 
 #preloads all required data
 class Resolution():
@@ -32,6 +33,9 @@ class Resolution():
     startXOffsetFromRight = None
     startYOffsetFromBottom = None
 
+    ref_labels = None
+    ref_stack = None
+
     @classmethod
     def init(cls, resolution):
         if cls.initialized:
@@ -46,24 +50,32 @@ class Resolution():
     def _cvtRefImgToNumpy(cls, resolution):
         refImgDict_cvtd_to_Numpy = {}
         if resolution == (3840, 2160):
-            for filename in os.listdir("AllCharactersBinarized4K"):
-                filepath = "AllCharactersBinarized4K/" + filename
-                refImgDict_cvtd_to_Numpy[filename[:2]] = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
+            folder = "AllCharactersBinarized4K"
             cls.maxHammingDistance = 81 ** 2
         elif resolution == (2560, 1440):
-            for filename in os.listdir("AllCharactersBinarized2K"):
-                filepath = "AllCharactersBinarized2K/" + filename
-                refImgDict_cvtd_to_Numpy[filename[:2]] = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
+            folder = "AllCharactersBinarized2K"
             cls.maxHammingDistance = 53 ** 2
         elif resolution == (1920, 1080):
-            for filename in os.listdir("AllCharactersBinarized1K"):
-                filepath = "AllCharactersBinarized1K/" + filename
-                refImgDict_cvtd_to_Numpy[filename[:2]] = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
+            folder = "AllCharactersBinarized1K"
             cls.maxHammingDistance = 40 ** 2
         else:
-            print("Invalid Resolution Provided")
+            #print("Invalid Resolution Provided")
             return
+
+        items = []
+        for filename in os.listdir(folder):
+            filepath = f"{folder}/{filename}"
+            label = filename[:2]
+            img = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
+            img_bool = (img > 0)
+            refImgDict_cvtd_to_Numpy[label] = img_bool
+            items.append((label, img_bool))
+
+        items.sort(key = lambda x: x[0])
         cls.refImgDict_cvtd_to_Numpy = refImgDict_cvtd_to_Numpy
+        cls.ref_labels = [lab for lab, _ in items]
+        cls.ref_stack = np.stack([im for _, im in items], axis = 0)
+
 
     @classmethod
     def _loadAbsPxls(cls, resolution):
@@ -138,7 +150,7 @@ class Resolution():
             cls.wipeCrop = [90, 95, 62, 223]
             cls.wipeCoordinates = [(0, 5), (40, 45), (118, 123), (156, 161)]
         else:
-            print("Invalid Resolution Provided")
+            #print("Invalid Resolution Provided")
             return
 
         width = resolution[0]
@@ -162,7 +174,7 @@ class Resolution():
             cls.boxBorderWidthPx = 2
             cls.boxW, cls.boxH = 75, 75
             cls.spacingFactor = 7
-            cls.fontSize = 18
+            cls.fontSize = 12
             cls.boxFontSize = 22
             cls.startXOffsetFromRight = 800
             cls.startYOffsetFromBottom = 1225
@@ -183,7 +195,7 @@ class Resolution():
             cls.boxH = max(1, int(round(75 * s)))
             cls.spacingFactor = 7
 
-            cls.fontSize = max(1, int(round(18 * s)))
+            cls.fontSize = max(1, int(round(15 * s)))
             cls.boxFontSize = max(1, int(round(22 * s)))
 
             cls.startXOffsetFromRight = int(round(800 * s))
@@ -204,7 +216,7 @@ class Resolution():
             cls.boxH = max(1, int(round(75 * s)))
             cls.spacingFactor = 7
 
-            cls.fontSize = max(1, int(round(18 * s)))
+            cls.fontSize = max(1, int(round(15 * s)))
             cls.boxFontSize = max(1, int(round(22 * s)))
 
             cls.startXOffsetFromRight = int(round(800 * s))
