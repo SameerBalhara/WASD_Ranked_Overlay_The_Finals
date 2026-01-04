@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 
 DEFAULT_SETTINGS = {
     "keybinds": {
@@ -8,7 +9,13 @@ DEFAULT_SETTINGS = {
     }
 }
 
-def load_settings(path = "settings.json"):
+def _base_dir():
+    if getattr(sys, "frozen", False):
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
+def load_settings():
+    path = os.path.join(_base_dir(), "settings.json")
     if not os.path.exists(path):
         return DEFAULT_SETTINGS
 

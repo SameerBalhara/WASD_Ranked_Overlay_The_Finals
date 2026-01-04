@@ -2,6 +2,7 @@ import cv2
 import os
 from sklearn.ensemble import RandomForestClassifier
 import numpy as np
+import sys
 
 #preloads all required data
 class Resolution():
@@ -48,7 +49,9 @@ class Resolution():
 
     @classmethod
     def _cvtRefImgToNumpy(cls, resolution):
+        import sys
         refImgDict_cvtd_to_Numpy = {}
+
         if resolution == (3840, 2160):
             folder = "AllCharactersBinarized4K"
             cls.maxHammingDistance = 81 ** 2
@@ -59,23 +62,34 @@ class Resolution():
             folder = "AllCharactersBinarized1K"
             cls.maxHammingDistance = 40 ** 2
         else:
-            #print("Invalid Resolution Provided")
             return
 
+        exe_dir = os.path.dirname(sys.executable) if getattr(sys, "frozen", False) else None
+        mod_dir = os.path.dirname(os.path.abspath(__file__))
+
+        candidates = []
+        if exe_dir:
+            candidates.append(os.path.join(exe_dir, folder))
+        candidates.append(os.path.join(mod_dir, folder))
+        candidates.append(os.path.join(os.getcwd(), folder))
+
+        folder_path = next((p for p in candidates if os.path.isdir(p)), None)
+        if folder_path is None:
+            raise FileNotFoundError(folder)
+
         items = []
-        for filename in os.listdir(folder):
-            filepath = f"{folder}/{filename}"
+        for filename in os.listdir(folder_path):
+            filepath = os.path.join(folder_path, filename)
             label = filename[:2]
             img = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
             img_bool = (img > 0)
             refImgDict_cvtd_to_Numpy[label] = img_bool
             items.append((label, img_bool))
 
-        items.sort(key = lambda x: x[0])
+        items.sort(key=lambda x: x[0])
         cls.refImgDict_cvtd_to_Numpy = refImgDict_cvtd_to_Numpy
         cls.ref_labels = [lab for lab, _ in items]
-        cls.ref_stack = np.stack([im for _, im in items], axis = 0)
-
+        cls.ref_stack = np.stack([im for _, im in items], axis=0)
 
     @classmethod
     def _loadAbsPxls(cls, resolution):
