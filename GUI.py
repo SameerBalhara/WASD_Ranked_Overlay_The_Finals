@@ -7,13 +7,30 @@ from imageToText import Text
 from Logic import Logic
 import time
 import traceback
-import mss
 import cv2
 import numpy as np
+import ctypes
+import mss
 
 from PyQt5.QtCore import Qt, QObject, pyqtSignal
 from PyQt5.QtGui import QPainter, QColor, QFont, QPen, QBrush, QFontMetrics
 from PyQt5.QtWidgets import QApplication, QWidget, QLabel
+
+SUPPORTED = {(1920, 1080), (2560, 1440), (3840, 2160)}
+
+def get_primary_mss_monitor() -> tuple[int, dict]:
+    with mss.mss() as sct:
+        for idx in range(1, len(sct.monitors)):
+            mon = sct.monitors[idx]
+            if mon["left"] == 0 and mon["top"] == 0:
+                return idx, mon
+
+        # Fallback
+        return 1, sct.monitors[1]
+
+def show_native_error(title: str, message: str) -> None:
+    flags = 0x10 | 0x40000
+    ctypes.windll.user32.MessageBoxW(None, message, title, flags)
 
 initialCoins = None
 f8_valid = False
@@ -21,11 +38,9 @@ tabLocked = False
 tabReleased = True
 tabLock = threading.Lock()
 
-
 class Bridge(QObject):
     f8_pressed = pyqtSignal()
     tab_pressed = pyqtSignal()
-
 
 class BoxWidget(QWidget):
     def __init__(self, parent, x, y, width, height, color_name="White", initial_text=""):
@@ -50,7 +65,7 @@ class BoxWidget(QWidget):
         painter.setBrush(QBrush(fill))
 
         pen = QPen(self.color)
-        pen.setWidth(2)
+        pen.setWidth(Resolution.boxBorderWidthPx)
         if self.opacity == 0.0:
             pen.setColor(QColor(self.color.red(), self.color.green(), self.color.blue(), 0))
         painter.setPen(pen)
@@ -94,20 +109,20 @@ class Overlay(QWidget):
         start_y = screen_geo.height() - Resolution.startYOffsetFromBottom
 
         box_w, box_h = Resolution.boxW, Resolution.boxH
-        spacing = 30
+        spacing = Resolution.gridSpacingPx
 
         abs_boxes = []
         for row in range(3):
             for col in range(3):
                 abs_x = start_x + col * (box_w + spacing)
-                abs_y = start_y + row * (box_h + Resolution.spacingFactor * spacing + 5)
+                abs_y = start_y + row * (box_h + Resolution.spacingFactor * spacing + Resolution.gridRowExtraYPx)
                 abs_boxes.append((abs_x, abs_y))
 
-        self.status_font = QFont("Consolas", Resolution.boxFontSize, QFont.Bold)
+        self.status_font = QFont("Consolas", Resolution.fontSize, QFont.Bold)
         fm = QFontMetrics(self.status_font)
 
-        status_h = int(fm.height() * 1.35)
-        pad = 6
+        status_h = int(fm.height() * Resolution.statusHeightMultiplier)
+        pad = Resolution.statusPadPx
 
         min_x = min(x for x, y in abs_boxes)
         min_y = min(y for x, y in abs_boxes)
@@ -122,12 +137,12 @@ class Overlay(QWidget):
 
         self.setGeometry(win_x, win_y, win_w, win_h)
 
-        self.status_label = QLabel("Waiting for Input", self)
+        self.status_label = QLabel("Press f8", self)
         self.status_label.setFont(self.status_font)
         self.status_label.setStyleSheet("color: white;")
         self.status_label.setAlignment(Qt.AlignCenter)
 
-        self.status_label.setGeometry(0, pad // 2, win_w, status_h)
+        self.status_label.setGeometry(0, Resolution.statusLabelTopInsetPx, win_w, status_h)
 
         self.boxes = []
         for (abs_x, abs_y) in abs_boxes:
@@ -171,7 +186,7 @@ class Overlay(QWidget):
         print(initialCoins)
 
         if not f8_valid:
-            self.set_status("f8 invalid")
+            self.set_status("no coins found")
 
     def on_tab_pressed(self):
         try:
@@ -235,13 +250,11 @@ class Overlay(QWidget):
         global tabLocked, tabReleased
         with tabLock:
             tabLocked = False
-            tabReleased = True
 
     def wipeCheck(self):
         #return {'Pink', 'Purple', 'Orange'}
-        x1, x2 = 182, 195
-        y1, y2 = 125, 450
-        coordinates = [(0, 13), (80, 93), (235, 248), (312, 325)]
+        x1, x2 = Resolution.wipeCrop[0], Resolution.wipeCrop[1]
+        y1, y2 = Resolution.wipeCrop[2], Resolution.wipeCrop[3]
 
         roi = {"left": x1, "top": y1, "width": x2 - x1, "height": y2 - y1}
         with mss.mss() as sct:
@@ -250,7 +263,7 @@ class Overlay(QWidget):
 
         aliveTeams = set()
 
-        for x, y in coordinates:
+        for x, y in Resolution.wipeCoordinates:
             average_color = cv2.mean(scene[x:y])[:3]
             b, g, r = average_color
             sample = [[int(r), int(g), int(b)]]
@@ -286,8 +299,24 @@ def keyboard_thread(bridge):
 
 
 def main():
+    monitorIndex, primary_mon = get_primary_mss_monitor()
+    w, h = primary_mon["width"], primary_mon["height"]
+    print("Primary MSS index:", monitorIndex, "Resolution:", (w, h))
+
+    if (w, h) not in SUPPORTED:
+        show_native_error(
+            "Invalid Monitor Resolution",
+            f"Detected: {w} x {h}\n\n"
+            "Supported resolutions:\n"
+            "• 1920 x 1080\n"
+            "• 2560 x 1440\n"
+            "• 3840 x 2160\n\n"
+            "Fix your display settings and relaunch."
+        )
+        sys.exit(1)
+
     res = Resolution()
-    res.init((3840, 2160))
+    res.init((w, h))
 
     app = QApplication(sys.argv)
     bridge = Bridge()

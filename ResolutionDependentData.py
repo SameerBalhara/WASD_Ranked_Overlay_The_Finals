@@ -14,13 +14,23 @@ class Resolution():
     color_clf = None
 
     initialized = False
+    wipeCrop = None
+    wipeCoordinates = None
 
-    distanceFromRight, distanceFromBottom = 800, 1800
-    startXOffsetFromRight, startYOffsetFromBottom = 800, 1225
-    boxW, boxH = 75, 75
-    spacingFactor = 7
-    fontSize = 14
-    boxFontSize = 22
+    gridSpacingPx = None
+    gridRowExtraYPx = None
+    statusHeightMultiplier = None
+    statusPadPx = None
+    statusLabelTopInsetPx = None
+    boxBorderWidthPx = None
+    boxOpacityIdle = None
+    boxOpacityActive = None
+    boxW, boxH = None, None
+    spacingFactor = None
+    fontSize = None
+    boxFontSize = None
+    startXOffsetFromRight = None
+    startYOffsetFromBottom = None
 
     @classmethod
     def init(cls, resolution):
@@ -28,6 +38,7 @@ class Resolution():
             return
         cls._cvtRefImgToNumpy(resolution)
         cls._loadAbsPxls(resolution)
+        cls._loadOverlayUiParams(resolution)
         cls._train_colors()
         cls.initialized = True
 
@@ -79,6 +90,9 @@ class Resolution():
                                        ((0.48325, 0.70375), (0.50425, 0.74125)), ((0.13725, 0.744), (0.1585, 0.7815)),
                                        ((0.43725, 0.744), (0.4585, 0.7815)), ((0.46025, 0.744), (0.4815, 0.7815)),
                                        ((0.48325, 0.744), (0.50425, 0.7815))]
+            #x1, x2, y1, y2
+            cls.wipeCrop = [182, 195, 125, 450]
+            cls.wipeCoordinates = [(0, 13), (80, 93), (235, 248), (312, 325)]
         elif resolution == (2560, 1440):
             rlvPxls = [((0.1375, 0.3975), (0.1585, 0.4345)), ((0.4375, 0.3975), (0.4585, 0.4345)),
                            ((0.46075, 0.3975), (0.4815, 0.4345)), ((0.4835, 0.3975), (0.50425, 0.4345)),
@@ -98,6 +112,9 @@ class Resolution():
                            ((0.46075, 0.705), (0.4815, 0.74175)), ((0.4835, 0.7049), (0.50425, 0.74175)),
                            ((0.1375, 0.74575), (0.1585, 0.782)), ((0.4375, 0.74575), (0.4585, 0.782)),
                            ((0.46075, 0.74575), (0.4815, 0.782)), ((0.4835, 0.74575), (0.50425, 0.782))]
+            # x1, x2, y1, y2
+            cls.wipeCrop = [122, 132, 85, 300]
+            cls.wipeCoordinates = [(0, 10), (50, 60), (155, 165), (205, 215)]
         elif resolution == (1920, 1080):
             rlvPxls = [((0.1375, 0.3955), (0.1585, 0.4325)), ((0.4375, 0.3955), (0.4585, 0.4325)),
                            ((0.4605, 0.3955), (0.4815, 0.4325)), ((0.4835, 0.3955), (0.50425, 0.4325)),
@@ -117,6 +134,9 @@ class Resolution():
                            ((0.4605, 0.7035), (0.4815, 0.74)), ((0.4835, 0.7035), (0.50425, 0.74)),
                            ((0.1375, 0.744), (0.1585, 0.781)), ((0.4375, 0.744), (0.4585, 0.781)),
                            ((0.4605, 0.744), (0.4815, 0.781)), ((0.4835, 0.744), (0.50425, 0.781))]
+            # x1, x2, y1, y2
+            cls.wipeCrop = [90, 95, 62, 223]
+            cls.wipeCoordinates = [(0, 5), (40, 45), (118, 123), (156, 161)]
         else:
             print("Invalid Resolution Provided")
             return
@@ -130,6 +150,67 @@ class Resolution():
             absPxls.append(((x1, y1), (x2, y2)))
 
         cls.absPxls = absPxls
+
+    @classmethod
+    def _loadOverlayUiParams(cls, resolution):
+        if resolution == (3840, 2160):
+            cls.gridSpacingPx = 30
+            cls.gridRowExtraYPx = 5
+            cls.statusHeightMultiplier = 1.35
+            cls.statusPadPx = 6
+            cls.statusLabelTopInsetPx = 3
+            cls.boxBorderWidthPx = 2
+            cls.boxW, cls.boxH = 75, 75
+            cls.spacingFactor = 7
+            cls.fontSize = 18
+            cls.boxFontSize = 22
+            cls.startXOffsetFromRight = 800
+            cls.startYOffsetFromBottom = 1225
+
+        elif resolution == (2560, 1440):
+            s = 2560 / 3840  # == 2/3
+
+            cls.gridSpacingPx = int(round(30 * s))
+            cls.gridRowExtraYPx = max(1, int(round(5 * s)))
+
+            cls.statusHeightMultiplier = 1.35
+            cls.statusPadPx = max(1, int(round(6 * s)))
+            cls.statusLabelTopInsetPx = max(0, int(round(3 * s)))
+
+            cls.boxBorderWidthPx = max(1, int(round(2 * s)))
+
+            cls.boxW = max(1, int(round(75 * s)))
+            cls.boxH = max(1, int(round(75 * s)))
+            cls.spacingFactor = 7
+
+            cls.fontSize = max(1, int(round(18 * s)))
+            cls.boxFontSize = max(1, int(round(22 * s)))
+
+            cls.startXOffsetFromRight = int(round(800 * s))
+            cls.startYOffsetFromBottom = int(round(1225 * s))
+        elif resolution == (1920, 1080):
+            s = 1920 / 3840  # == 1/2
+
+            cls.gridSpacingPx = int(round(30 * s))
+            cls.gridRowExtraYPx = max(1, int(round(5 * s)))
+
+            cls.statusHeightMultiplier = 1.35
+            cls.statusPadPx = max(1, int(round(6 * s)))
+            cls.statusLabelTopInsetPx = max(0, int(round(3 * s)))
+
+            cls.boxBorderWidthPx = max(1, int(round(2 * s)))
+
+            cls.boxW = max(1, int(round(75 * s)))
+            cls.boxH = max(1, int(round(75 * s)))
+            cls.spacingFactor = 7
+
+            cls.fontSize = max(1, int(round(18 * s)))
+            cls.boxFontSize = max(1, int(round(22 * s)))
+
+            cls.startXOffsetFromRight = int(round(800 * s))
+            cls.startYOffsetFromBottom = int(round(1225 * s))
+        else:
+            raise ValueError("Unsupported resolution")
 
     @classmethod
     def _train_colors(cls):

@@ -6,7 +6,7 @@ import mss
 import numpy as np
 
 #WARNING: class should only ever be accessed after ResolutionDependentData is initialized
-def takesubImages(msDelay = 0, monIndex = 1):
+def takesubImages(msDelay = 0, monIndex = 0):
     #waits for msDelay ms before image capture
     t0 = time.perf_counter()
     target = t0 + msDelay / 1000
@@ -42,7 +42,7 @@ def takesubImages(msDelay = 0, monIndex = 1):
         t = Text()
         t.cvtImageToText_36(BinarizedImages, colorSamples)
 
-def captureCoins(msDelay = 0, monIndex = 1):
+def captureCoins(msDelay = 0, monIndex = 0):
     #waits for msDelay ms before image capture
     t0 = time.perf_counter()
     target = t0 + msDelay / 1000
