@@ -9,23 +9,31 @@ DEFAULT_SETTINGS = {
     }
 }
 
-def _base_dir():
-    if getattr(sys, "frozen", False):
-        return os.path.dirname(sys.executable)
-    return os.path.dirname(os.path.abspath(__file__))
+def _first_existing(*paths):
+    for p in paths:
+        if p and os.path.exists(p):
+            return p
+    return None
 
 def load_settings():
-    path = os.path.join(_base_dir(), "settings.json")
-    if not os.path.exists(path):
+    exe_dir = os.path.dirname(sys.executable)
+    mod_dir = os.path.dirname(os.path.abspath(__file__))
+    cwd = os.getcwd()
+
+    path = _first_existing(
+        os.path.join(exe_dir, "settings.json"),
+        os.path.join(cwd, "settings.json"),
+        os.path.join(mod_dir, "settings.json"),
+    )
+
+    if path is None:
         return DEFAULT_SETTINGS
 
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
     keybinds = data.get("keybinds", {})
-    return {
-        "keybinds": {
-            "initialScreenshot": keybinds.get("initialScreenshot", "f8"),
-            "scoreboard": keybinds.get("scoreboard", "tab")
-        }
-    }
+    init_key = str(keybinds.get("initialScreenshot", "f8")).lower()
+    score_key = str(keybinds.get("scoreboard", "tab")).lower()
+
+    return {"keybinds": {"initialScreenshot": init_key, "scoreboard": score_key}}

@@ -36,6 +36,13 @@ def show_native_error(title: str, message: str) -> None:
 
 initialCoins = None
 f8_valid = False
+
+initKeyName = "f8"
+scoreKeyName = "tab"
+
+f8Locked = False
+f8Lock = threading.Lock()
+
 tabLocked = False
 tabReleased = True
 tabLock = threading.Lock()
@@ -171,24 +178,32 @@ class Overlay(QWidget):
             self.update_box(row * 3 + col, "", color="White", opacity=0.1)
 
     def on_f8_pressed(self):
-        global f8_valid, initialCoins
+        global f8_valid, initialCoins, f8Locked, initKeyName
 
-        self.set_status("f8 pressed")
+        try:
+            self.set_status(f"{initKeyName} pressed")
 
-        iC.captureCoins(msDelay=33)
+            iC.captureCoins(msDelay=33)
 
-        initCoins = {}
-        for i in range(3):
-            a = Text.teamColorsOnInitialCoins[i]
-            if a is not None:
-                initCoins[a] = Text.initialCoins[i]
+            initCoins = {}
+            for i in range(3):
+                a = Text.teamColorsOnInitialCoins[i]
+                if a is not None:
+                    initCoins[a] = Text.initialCoins[i]
 
-        initialCoins = initCoins
-        f8_valid = len(initCoins) > 0
-        #print(initialCoins)
+            initialCoins = initCoins
+            f8_valid = len(initCoins) > 0
 
-        if not f8_valid:
-            self.set_status("invalid coin capture")
+            if not f8_valid:
+                self.set_status("invalid coin capture")
+
+        except Exception:
+            traceback.print_exc()
+            self.set_status(f"{initKeyName} error")
+
+        finally:
+            with f8Lock:
+                f8Locked = False
 
     def on_tab_pressed(self):
         try:
@@ -278,7 +293,15 @@ def keyboard_thread(bridge, keybinds):
     init_key = keybinds["initialScreenshot"]
     score_key = keybinds["scoreboard"]
 
-    keyboard.add_hotkey(init_key, bridge.f8_pressed.emit)
+    def f8_press(e):
+        global f8Locked
+        with f8Lock:
+            if f8Locked:
+                return
+            f8Locked = True
+        bridge.f8_pressed.emit()
+
+    keyboard.on_press_key(init_key, f8_press)
 
     def tab_press(e):
         global tabLocked, tabReleased
@@ -301,6 +324,10 @@ def keyboard_thread(bridge, keybinds):
 def main():
     settings = load_settings()
     keybinds = settings["keybinds"]
+    global initKeyName, scoreKeyName
+    initKeyName = str(keybinds.get("initialScreenshot", "f8"))
+    scoreKeyName = str(keybinds.get("scoreboard", "tab"))
+
     monitorIndex, primary_mon = get_primary_mss_monitor()
     w, h = primary_mon["width"], primary_mon["height"]
     #print("Primary MSS index:", monitorIndex, "Resolution:", (w, h))
