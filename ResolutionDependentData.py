@@ -209,7 +209,7 @@ class Resolution():
             cls.boxH = max(1, int(round(75 * s)))
             cls.spacingFactor = 7
 
-            cls.fontSize = max(1, int(round(15 * s)))
+            cls.fontSize = max(1, int(round(13 * s)))
             cls.boxFontSize = max(1, int(round(22 * s)))
 
             cls.startXOffsetFromRight = int(round(800 * s))
@@ -230,7 +230,7 @@ class Resolution():
             cls.boxH = max(1, int(round(75 * s)))
             cls.spacingFactor = 7
 
-            cls.fontSize = max(1, int(round(15 * s)))
+            cls.fontSize = max(1, int(round(13 * s)))
             cls.boxFontSize = max(1, int(round(22 * s)))
 
             cls.startXOffsetFromRight = int(round(800 * s))

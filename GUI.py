@@ -183,7 +183,7 @@ class Overlay(QWidget):
         try:
             self.set_status(f"{initKeyName} pressed")
 
-            iC.captureCoins(msDelay=33)
+            iC.captureCoins(msDelay = 33, monIndex = self.monitorIndex)
 
             initCoins = {}
             for i in range(3):
@@ -227,7 +227,7 @@ class Overlay(QWidget):
             #print("timeToCalculateWipe:", timeToCalculateWipe)
             #print("netDelay:", netDelay)
 
-            iC.takesubImages(msDelay=netDelay)
+            iC.takesubImages(msDelay = netDelay, monIndex = self.monitorIndex)
 
             for i in range(3):
                 t = Text.cvtdText[i]
@@ -269,8 +269,16 @@ class Overlay(QWidget):
         x1, x2 = Resolution.wipeCrop[0], Resolution.wipeCrop[1]
         y1, y2 = Resolution.wipeCrop[2], Resolution.wipeCrop[3]
 
-        roi = {"left": x1, "top": y1, "width": x2 - x1, "height": y2 - y1}
         sct = get_sct()
+        mon = sct.monitors[self.monitorIndex]
+
+        roi = {
+            "left": mon["left"] + x1,
+            "top": mon["top"] + y1,
+            "width": x2 - x1,
+            "height": y2 - y1
+        }
+
         img = sct.grab(roi)
         scene = np.array(img)[:, :, :3]
 
@@ -350,6 +358,7 @@ def main():
     app = QApplication(sys.argv)
     bridge = Bridge()
     overlay = Overlay(bridge)
+    overlay.monitorIndex = monitorIndex
 
     t = threading.Thread(target = keyboard_thread, args = (bridge, keybinds), daemon = True)
     t.start()
